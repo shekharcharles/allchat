@@ -6,6 +6,8 @@ import * as z from "zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { Loader2, LockKeyhole, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
@@ -58,54 +61,153 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Enter your credentials to access your account.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                {...register("email")}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-b from-background to-background/95 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <motion.div
+          className="absolute -inset-[10px] opacity-50"
+          style={{
+            background: "radial-gradient(circle at center, rgba(var(--foreground-rgb), 0.1) 0%, transparent 70%)",
+          }}
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.5, 0.3],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        {/* Floating orbs */}
+        {[...Array(3)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-64 h-64 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-full blur-3xl"
+            animate={{
+              x: [0, 100, 0],
+              y: [0, -50, 0],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 10,
+              delay: i * 2,
+              repeat: Infinity,
+              repeatType: "reverse",
+            }}
+            style={{
+              left: `${30 + i * 20}%`,
+              top: `${20 + i * 20}%`,
+            }}
+          />
+        ))}
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md px-4"
+      >
+        <Card className="backdrop-blur-xl bg-card/50 border-foreground/10">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to continue
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    {...register("email")}
+                    placeholder="you@example.com"
+                    className="pl-10 bg-background/50"
+                    autoComplete="email"
+                  />
+                </div>
+                {errors.email && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-destructive"
+                  >
+                    {errors.email.message}
+                  </motion.p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <LockKeyhole className="absolute left-3 top-2.5 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    {...register("password")}
+                    type="password"
+                    className="pl-10 bg-background/50"
+                    autoComplete="current-password"
+                  />
+                </div>
+                {errors.password && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-destructive"
+                  >
+                    {errors.password.message}
+                  </motion.p>
+                )}
+              </div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm"
+                >
+                  {error}
+                </motion.div>
               )}
+
+              <Button
+                type="submit"
+                className="w-full relative overflow-hidden group"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    Sign In
+                    <motion.div
+                      className="absolute inset-0 bg-foreground/10"
+                      initial={{ x: "100%" }}
+                      animate={{ x: "-100%" }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1.5,
+                        ease: "linear",
+                      }}
+                    />
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+          <CardFooter className="flex flex-col space-y-4">
+            <div className="text-sm text-muted-foreground text-center">
+              Don't have an account?{" "}
+              <motion.span whileHover={{ scale: 1.05 }} className="inline-block">
+                <Link href="/register" className="text-primary hover:underline">
+                  Register here
+                </Link>
+              </motion.span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register("password")}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
-            </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="text-sm text-center">
-          <p>
-            Don&apos;t have an account?{" "}
-            <a href="/register" className="underline">
-              Register
-            </a>
-          </p>
-        </CardFooter>
-      </Card>
+          </CardFooter>
+        </Card>
+      </motion.div>
     </div>
   );
 }

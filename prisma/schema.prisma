@@ -14,22 +14,38 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  password  String   // Will store hashed password
+  password  String   
   createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt // @updatedAt will auto-update this timestamp
+  updatedAt DateTime @default(now()) @updatedAt
 
-  messages ChatMessage[] // Relation to ChatMessage model
+  messages ChatMessage[]
+  sessions ChatSession[]
+}
+
+model ChatSession {
+  id          String   @id @default(cuid())
+  title       String   @default("New Chat")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  messages    ChatMessage[]
+
+  @@index([userId])
 }
 
 model ChatMessage {
   id        String   @id @default(cuid())
   content   String
-  role      Role     // Enum: USER or ASSISTANT
+  role      Role
   createdAt DateTime @default(now())
-  userId    String   // Foreign key to User model
+  userId    String
   user      User     @relation(fields: [userId], references: [id])
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id])
 
-  @@index([userId]) // Add index for querying messages by user
+  @@index([userId])
+  @@index([sessionId])
 }
 
 enum Role {
