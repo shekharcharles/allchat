@@ -1,0 +1,11 @@
+{
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": ".*",
+        "isShellCommand": true,
+        "cmd": "git add . && git commit -m \"Auto-commit\" && git push origin main"
+      }
+    ]
+  }
+}

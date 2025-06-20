@@ -1,7 +1,7 @@
 import NextAuth, { NextAuthOptions, User as NextAuthUser } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
-import prisma from "@/lib/prisma"; // Import Prisma client
+import { MongoClient, ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs'; // Import bcryptjs
 
 // Define a type for the user object returned by authorize, extending NextAuthUser
@@ -25,9 +25,19 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        let client: MongoClient | null = null;
+
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
+          // Connect to MongoDB directly
+          const mongoUrl = process.env.DATABASE_URL?.replace('?directConnection=true', '') || 'mongodb://localhost:27017/t3';
+          client = new MongoClient(mongoUrl);
+          await client.connect();
+
+          const db = client.db('t3');
+          const usersCollection = db.collection('User');
+
+          const user = await usersCollection.findOne({
+            email: credentials.email
           });
 
           if (!user) {
@@ -45,7 +55,7 @@ export const authOptions: NextAuthOptions = {
           console.log("User authenticated:", user.email);
           // Return user object without password
           return {
-            id: user.id,
+            id: user._id.toString(),
             name: user.name,
             email: user.email,
             // image: user.image, // if you have images
@@ -53,6 +63,10 @@ export const authOptions: NextAuthOptions = {
         } catch (error) {
           console.error("Error in authorize function:", error);
           return null; // Error during authorization
+        } finally {
+          if (client) {
+            await client.close();
+          }
         }
       }
     }),

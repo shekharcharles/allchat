@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Selector - Gemini Style</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Main Container */
+        .model-selector {
+            width: 100%;
+            max-width: 480px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Search Bar */
+        .search-container {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 2px solid rgba(0, 0, 0, 0.08);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+            font-size: 16px;
+        }
+
+        /* Upgrade Banner */
+        .upgrade-banner {
+            margin: 16px 20px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(236, 72, 153, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .upgrade-content h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #be185d;
+            margin-bottom: 4px;
+        }
+
+        .upgrade-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: #be185d;
+        }
+
+        .upgrade-price span {
+            font-size: 12px;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+
+        .upgrade-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upgrade-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.3);
+        }
+
+        /* Model Sections */
+        .model-section {
+            padding: 0 20px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 20px 0 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .section-header i {
+            color: #fbbf24;
+        }
+
+        /* Model Grid */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .model-grid.compact {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        /* Model Cards */
+        .model-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+            border-color: #8b5cf6;
+        }
+
+        .model-card.selected {
+            border-color: #8b5cf6;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+        }
+
+        .model-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .model-card.compact {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .model-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .model-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .model-badge {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-new {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-thinking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .model-features {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .feature-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .feature-web { background: #3b82f6; }
+        .feature-pdf { background: #ef4444; }
+        .feature-reasoning { background: #8b5cf6; }
+        .feature-image { background: #f59e0b; }
+        .feature-fast { background: #10b981; }
+        .feature-vision { background: #ec4899; }
+
+        /* Bottom Controls */
+        .bottom-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .view-toggle {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.3s ease;
+        }
+
+        .view-toggle:hover {
+            color: #8b5cf6;
+        }
+
+        .filter-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .filter-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: scale(1.05);
+        }
+
+        /* Filter Menu */
+        .filter-menu {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 200px;
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .filter-menu.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: all;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .filter-option:hover {
+            color: #8b5cf6;
+        }
+
+        .filter-checkbox {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .filter-checkbox.checked {
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+            color: white;
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .model-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .model-selector {
+                max-width: 100%;
+                margin: 0 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="model-selector">
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Search models..." id="searchInput">
+            </div>
+        </div>
+
+        <!-- Upgrade Banner -->
+        <div class="upgrade-banner">
+            <div class="upgrade-content">
+                <h3>Unlock all models + higher limits</h3>
+                <div class="upgrade-price">$8 <span>/month</span></div>
+            </div>
+            <button class="upgrade-btn">Upgrade now</button>
+        </div>
+
+        <!-- Favorites Section -->
+        <div class="model-section">
+            <div class="section-header">
+                <i class="fas fa-star"></i>
+                <span>Favorites</span>
+            </div>
+            <div class="model-grid" id="favoritesGrid">
+                <!-- Favorite models will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Others Section -->
+        <div class="model-section">
+            <div class="section-header">
+                <span>Others</span>
+            </div>
+            <div class="model-grid" id="othersGrid">
+                <!-- Other models will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="bottom-controls">
+            <button class="view-toggle" id="viewToggle">
+                <i class="fas fa-th"></i>
+                <span>Show all</span>
+            </button>
+            <button class="filter-btn" id="filterBtn">
+                <i class="fas fa-filter"></i>
+            </button>
+        </div>
+
+        <!-- Filter Menu -->
+        <div class="filter-menu" id="filterMenu">
+            <div class="filter-option" data-filter="fast">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>⚡ Fast</span>
+            </div>
+            <div class="filter-option" data-filter="vision">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>👁️ Vision</span>
+            </div>
+            <div class="filter-option" data-filter="web">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>🌐 Search</span>
+            </div>
+            <div class="filter-option" data-filter="pdf">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>📄 PDFs</span>
+            </div>
+            <div class="filter-option" data-filter="reasoning">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>🧠 Reasoning</span>
+            </div>
+            <div class="filter-option" data-filter="image">
+                <div class="filter-checkbox">
+                    <i class="fas fa-check" style="font-size: 10px;"></i>
+                </div>
+                <span>🎨 Image Generation</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Model data
+        const models = [
+            {
+                id: 'gemini-2.5-flash',
+                name: 'Gemini 2.5 Flash',
+                badge: { text: 'NEW', type: 'new' },
+                features: ['fast', 'web', 'vision', 'reasoning'],
+                favorite: true,
+                available: true
+            },
+            {
+                id: 'gemini-2.5-flash-lite',
+                name: 'Gemini 2.5 Flash Lite',
+                badge: { text: 'THINKING', type: 'thinking' },
+                features: ['fast', 'web', 'reasoning'],
+                favorite: true,
+                available: true
+            },
+            {
+                id: 'gpt-4-turbo',
+                name: 'GPT-4 Turbo',
+                features: ['web', 'vision', 'reasoning', 'pdf'],
+                favorite: false,
+                available: false
+            },
+            {
+                id: 'claude-3-sonnet',
+                name: 'Claude 3 Sonnet',
+                features: ['reasoning', 'pdf', 'vision'],
+                favorite: false,
+                available: true
+            },
+            {
+                id: 'gpt-3.5-turbo',
+                name: 'GPT-3.5 Turbo',
+                features: ['fast', 'web'],
+                favorite: false,
+                available: true
+            },
+            {
+                id: 'dall-e-3',
+                name: 'DALL-E 3',
+                features: ['image', 'fast'],
+                favorite: false,
+                available: false
+            }
+        ];
+
+        // State
+        let selectedModel = 'gemini-2.5-flash';
+        let isCompactView = false;
+        let activeFilters = [];
+        let searchQuery = '';
+
+        // DOM elements
+        const searchInput = document.getElementById('searchInput');
+        const favoritesGrid = document.getElementById('favoritesGrid');
+        const othersGrid = document.getElementById('othersGrid');
+        const viewToggle = document.getElementById('viewToggle');
+        const filterBtn = document.getElementById('filterBtn');
+        const filterMenu = document.getElementById('filterMenu');
+
+        // Feature icon mapping
+        const featureIcons = {
+            fast: { icon: '⚡', class: 'feature-fast' },
+            web: { icon: '🌐', class: 'feature-web' },
+            vision: { icon: '👁️', class: 'feature-vision' },
+            reasoning: { icon: '🧠', class: 'feature-reasoning' },
+            pdf: { icon: '📄', class: 'feature-pdf' },
+            image: { icon: '🎨', class: 'feature-image' }
+        };
+
+        // Create model card HTML
+        function createModelCard(model) {
+            const isSelected = model.id === selectedModel;
+            const isDisabled = !model.available;
+            
+            const featuresHTML = model.features.map(feature => {
+                const featureData = featureIcons[feature];
+                return `<div class="feature-icon ${featureData.class}" title="${feature}">${featureData.icon}</div>`;
+            }).join('');
+
+            const badgeHTML = model.badge ? 
+                `<span class="model-badge badge-${model.badge.type}">${model.badge.text}</span>` : '';
+
+            return `
+                <div class="model-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''} ${isCompactView ? 'compact' : ''} fade-in" 
+                     data-model-id="${model.id}" onclick="selectModel('${model.id}')">
+                    <div class="model-header">
+                        <div class="model-name">${model.name}</div>
+                        ${badgeHTML}
+                    </div>
+                    <div class="model-features">
+                        ${featuresHTML}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Filter models based on search and active filters
+        function filterModels(modelList) {
+            return modelList.filter(model => {
+                // Search filter
+                const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                // Feature filters
+                const matchesFilters = activeFilters.length === 0 || 
+                    activeFilters.every(filter => model.features.includes(filter));
+                
+                return matchesSearch && matchesFilters;
+            });
+        }
+
+        // Render models
+        function renderModels() {
+            const favorites = filterModels(models.filter(m => m.favorite));
+            const others = filterModels(models.filter(m => !m.favorite));
+
+            favoritesGrid.innerHTML = favorites.map(createModelCard).join('');
+            othersGrid.innerHTML = others.map(createModelCard).join('');
+
+            // Hide sections if empty
+            favoritesGrid.parentElement.style.display = favorites.length ? 'block' : 'none';
+            othersGrid.parentElement.style.display = others.length ? 'block' : 'none';
+        }
+
+        // Select model
+        function selectModel(modelId) {
+            const model = models.find(m => m.id === modelId);
+            if (!model || !model.available) return;
+            
+            selectedModel = modelId;
+            renderModels();
+            
+            // Trigger custom event for parent components
+            window.dispatchEvent(new CustomEvent('modelSelected', { 
+                detail: { modelId, model } 
+            }));
+        }
+
+        // Toggle view
+        function toggleView() {
+            isCompactView = !isCompactView;
+            
+            favoritesGrid.classList.toggle('compact', isCompactView);
+            othersGrid.classList.toggle('compact', isCompactView);
+            
+            const toggleText = viewToggle.querySelector('span');
+            const toggleIcon = viewToggle.querySelector('i');
+            
+            if (isCompactView) {
+                toggleText.textContent = 'Favorites';
+                toggleIcon.className = 'fas fa-star';
+            } else {
+                toggleText.textContent = 'Show all';
+                toggleIcon.className = 'fas fa-th';
+            }
+            
+            renderModels();
+        }
+
+        // Toggle filter
+        function toggleFilter(filterType) {
+            const index = activeFilters.indexOf(filterType);
+            if (index > -1) {
+                activeFilters.splice(index, 1);
+            } else {
+                activeFilters.push(filterType);
+            }
+            
+            // Update filter UI
+            const filterOption = document.querySelector(`[data-filter="${filterType}"]`);
+            const checkbox = filterOption.querySelector('.filter-checkbox');
+            checkbox.classList.toggle('checked', activeFilters.includes(filterType));
+            
+            renderModels();
+        }
+
+        // Event listeners
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderModels();
+        });
+
+        viewToggle.addEventListener('click', toggleView);
+
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filterMenu.classList.toggle('active');
+        });
+
+        // Close filter menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!filterMenu.contains(e.target) && !filterBtn.contains(e.target)) {
+                filterMenu.classList.remove('active');
+            }
+        });
+
+        // Filter option clicks
+        document.querySelectorAll('.filter-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const filterType = option.dataset.filter;
+                toggleFilter(filterType);
+            });
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                filterMenu.classList.remove('active');
+            }
+        });
+
+        // Initialize
+        renderModels();
+
+        // Expose functions for external use
+        window.ModelSelector = {
+            selectModel,
+            getSelectedModel: () => selectedModel,
+            getModels: () => models
+        };
+    </script>
+</body>
+</html>

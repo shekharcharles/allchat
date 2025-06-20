@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma'; // Import Prisma client
+import { MongoClient } from 'mongodb';
 import bcrypt from 'bcryptjs'; // Import bcryptjs
 
 export async function POST(request: Request) {
+  let client: MongoClient | null = null;
+
   try {
     const { email, password, name } = await request.json();
 
@@ -14,10 +16,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Password must be at least 6 characters long' }, { status: 400 });
     }
 
+    // Connect to MongoDB directly
+    const mongoUrl = process.env.DATABASE_URL?.replace('?directConnection=true', '') || 'mongodb://localhost:27017/t3';
+    client = new MongoClient(mongoUrl);
+    await client.connect();
+
+    const db = client.db('t3');
+    const usersCollection = db.collection('User');
+
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await usersCollection.findOne({ email });
 
     if (existingUser) {
       return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 }); // 409 Conflict
@@ -27,23 +35,31 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
 
     // Create new user in the database
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name: name || null, // Optional name field
-      },
-    });
+    const userDoc = {
+      email,
+      password: hashedPassword,
+      name: name || null,
+      createdAt: new Date(),
+    };
+
+    const result = await usersCollection.insertOne(userDoc);
 
     // Don't return the password in the response
-    const { password: _, ...userWithoutPassword } = user;
+    const userWithoutPassword = {
+      id: result.insertedId.toString(),
+      email: userDoc.email,
+      name: userDoc.name,
+      createdAt: userDoc.createdAt,
+    };
 
     return NextResponse.json({ message: 'User registered successfully', user: userWithoutPassword }, { status: 201 });
 
   } catch (error) {
     console.error('Registration error:', error);
-    // Check for specific Prisma errors if needed, e.g., P2002 for unique constraint violation
-    // though the check above should catch existing email.
     return NextResponse.json({ message: 'An unexpected error occurred during registration' }, { status: 500 });
+  } finally {
+    if (client) {
+      await client.close();
+    }
   }
 }

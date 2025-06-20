@@ -4,8 +4,8 @@ import React, { useEffect, useState, FormEvent, KeyboardEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircleIcon, MessageSquareIcon, Loader2, AlertTriangleIcon, SearchIcon, XIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion'; // Import Framer Motion
+import { PlusCircleIcon, MessageSquareIcon, Loader2, AlertTriangleIcon, SearchIcon, XIcon, Trash2Icon, EditIcon, CheckIcon, ImageIcon } from 'lucide-react'; // Removed MoreHorizontalIcon and dropdown imports
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatSession {
   id: string;
@@ -67,7 +67,14 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
   const [searchResults, setSearchResults] = useState<SearchResultMessage[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false); // To know if a search has been performed
+  const [hasSearched, setHasSearched] = useState(false);
+
+  // States for rename functionality
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionTitle, setEditingSessionTitle] = useState<string>('');
+
+  // State for delete confirmation
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   // Fetch initial sessions
   useEffect(() => {
@@ -90,7 +97,104 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
     };
 
     fetchSessions();
-  }, []);
+  }, [currentSessionId]); // Add currentSessionId to dependencies to refresh when a new chat is selected/created
+
+  const refreshSessions = async () => {
+    setIsLoadingSessions(true);
+    setSessionsError(null);
+    try {
+      const response = await fetch('/api/chat/sessions');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to fetch sessions: ${response.status}`);
+      }
+      const data: ChatSession[] = await response.json();
+      setSessions(data);
+    } catch (err) {
+      setSessionsError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  const handleDeleteClick = (sessionId: string) => {
+    setDeletingSessionId(sessionId);
+  };
+
+  const handleDeleteConfirm = async (sessionId: string) => {
+    setSessionsError(null);
+    try {
+      const response = await fetch(`/api/chat/delete/${sessionId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to delete session: ${response.status}`);
+      }
+
+      // If the deleted session was the currently active one, just refresh the session list
+      // Don't automatically start a new chat - let the user decide
+      if (sessionId === currentSessionId) {
+        onNewChat(); // Clear the current session
+      }
+
+      // Always refresh the session list after deletion
+      await refreshSessions();
+      console.log('Chat session deleted successfully:', sessionId);
+    } catch (err) {
+      setSessionsError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeletingSessionId(null);
+  };
+
+  const handleRenameSession = async (sessionId: string) => {
+    if (!editingSessionTitle.trim()) {
+      setSessionsError("Chat title cannot be empty.");
+      return;
+    }
+    if (editingSessionTitle.trim() === sessions.find(s => s.id === sessionId)?.title) {
+      setEditingSessionId(null); // No change, just exit edit mode
+      return;
+    }
+
+    setSessionsError(null);
+    try {
+      const response = await fetch(`/api/chat/rename/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editingSessionTitle.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Failed to rename session: ${response.status}`);
+      }
+
+      await refreshSessions(); // Refresh list to show new title
+      setEditingSessionId(null); // Exit edit mode
+      console.log('Chat session renamed successfully:', sessionId, editingSessionTitle);
+    } catch (err) {
+      setSessionsError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleEditClick = (session: ChatSession) => {
+    setEditingSessionId(session.id);
+    setEditingSessionTitle(session.title);
+  };
+
+  const handleRenameCancel = () => {
+    setEditingSessionId(null);
+    setEditingSessionTitle('');
+    setDeletingSessionId(null); // Clear delete confirmation state
+    setSessionsError(null); // Clear any rename errors
+  };
 
   const handleSearchSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault();
@@ -246,22 +350,110 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
                 animate={{ opacity: 1, x: 0, transition: { delay: index * 0.03 } }}
                 exit={{ opacity: 0, x: -20 }}
                 layout
+                className="relative" // Add relative for absolute positioning of dropdown trigger
               >
-                <Button
-                  variant={currentSessionId === session.id ? "secondary" : "ghost"}
-                  className="w-full justify-start items-center text-sm h-auto py-2.5 px-3 group"
-                  onClick={() => onSessionSelect(session.id)}
-                  title={session.title}
-                >
-                  <div className="flex flex-col items-start text-left flex-grow overflow-hidden">
-                    <span className="font-medium text-foreground group-hover:text-foreground truncate w-full">
-                      {truncateText(session.title, 25)}
-                    </span>
-                    <span className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 mt-0.5">
-                      {formatDisplayDate(session.updatedAt)}
-                    </span>
+                {editingSessionId === session.id ? (
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); handleRenameSession(session.id); }}
+                    className="flex items-center space-x-1 p-2 bg-muted/20 rounded-md shadow-inner"
+                  >
+                    <Input
+                      autoFocus
+                      value={editingSessionTitle}
+                      onChange={(e) => setEditingSessionTitle(e.target.value)}
+                      onBlur={() => handleRenameSession(session.id)} // Save on blur
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur(); // Trigger onBlur to save
+                        } else if (e.key === 'Escape') {
+                          handleRenameCancel();
+                        }
+                      }}
+                      className="flex-grow h-8 text-sm bg-background border-border"
+                    />
+                    <Button type="submit" size="icon" variant="ghost" className="h-8 w-8 text-green-500 hover:text-green-600">
+                      <CheckIcon className="h-4 w-4" />
+                    </Button>
+                    <Button type="button" size="icon" variant="ghost" onClick={handleRenameCancel} className="h-8 w-8 text-red-500 hover:text-red-600">
+                      <XIcon className="h-4 w-4" />
+                    </Button>
+                  </form>
+                ) : deletingSessionId === session.id ? (
+                  <div className="flex items-center space-x-1 p-2 bg-destructive/10 rounded-md border border-destructive/30">
+                    <div className="flex flex-col items-start text-left flex-grow overflow-hidden">
+                      <span className="font-medium text-foreground truncate w-full text-sm">
+                        Delete "{truncateText(session.title, 20)}"?
+                      </span>
+                      <span className="text-xs text-muted-foreground mt-0.5">
+                        This action cannot be undone
+                      </span>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDeleteConfirm(session.id)}
+                      className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/20"
+                      title="Confirm delete"
+                    >
+                      <CheckIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={handleDeleteCancel}
+                      className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20"
+                      title="Cancel delete"
+                    >
+                      <XIcon className="h-4 w-4" />
+                    </Button>
                   </div>
-                </Button>
+                ) : (
+                  <div className="relative group">
+                    <Button
+                      variant="ghost"
+                      className={`w-full justify-start items-center text-sm h-auto py-2.5 px-3 pr-20 sidebar-item ${currentSessionId === session.id ? 'active' : ''}`}
+                      onClick={() => onSessionSelect(session.id)}
+                      title={session.title}
+                    >
+                      <div className="flex flex-col items-start text-left flex-grow overflow-hidden">
+                        <span className="font-medium text-foreground group-hover:text-foreground truncate w-full">
+                          {truncateText(session.title, 25)}
+                        </span>
+                        <span className="text-xs text-muted-foreground group-hover:text-muted-foreground/80 mt-0.5">
+                          {formatDisplayDate(session.updatedAt)}
+                        </span>
+                      </div>
+                    </Button>
+
+                    {/* Action buttons */}
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 flex space-x-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClick(session);
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                        title="Rename chat"
+                      >
+                        <EditIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(session.id);
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20"
+                        title="Delete chat"
+                      >
+                        <Trash2Icon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
@@ -272,22 +464,39 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
 
 
   return (
-    <div className="h-full w-full sm:w-64 md:w-72 flex flex-col bg-background border-r border-border/60">
-      <div className="p-3 border-b border-border/60 space-y-3">
-        <Button
-          variant="outline"
-          className="w-full justify-start text-sm hover:bg-muted/50"
-          onClick={() => { clearSearch(); onNewChat(); }} // Clear search when starting new chat
-        >
-          <PlusCircleIcon className="mr-2 h-4 w-4" />
-          New Chat
-        </Button>
+    <div className="h-full w-full sm:w-64 md:w-72 flex flex-col sidebar">
+      {/* Header with T3 Chat branding */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--wordmark-color, #ca0277)' }}>T3 Chat</h1>
+        </div>
+        <div className="space-y-2">
+          <Button
+            className="w-full justify-center text-sm btn-primary rounded-lg h-10"
+            onClick={() => { clearSearch(); onNewChat(); }}
+          >
+            <PlusCircleIcon className="mr-2 h-4 w-4" />
+            New Chat
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-center text-sm rounded-lg h-10"
+            onClick={() => window.location.href = '/images'}
+          >
+            <ImageIcon className="mr-2 h-4 w-4" />
+            Image Generator
+          </Button>
+        </div>
+      </div>
+
+      {/* Search section */}
+      <div className="p-4 border-b border-border space-y-3">
         <form onSubmit={handleSearchSubmit}>
           <div className="relative">
             <Input
               type="search"
-              placeholder="Search messages..."
-              className="w-full text-sm h-9 pl-8 pr-8" // Added pr-8 for clear button
+              placeholder="Search your dreams..."
+              className="w-full text-sm h-10 pl-10 pr-8 chat-input rounded-lg"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
@@ -295,13 +504,13 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
                 if (e.key === 'Escape') clearSearch();
               }}
             />
-            <SearchIcon className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             {searchQuery && (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
                 onClick={clearSearch}
               >
                 <XIcon className="h-4 w-4" />
@@ -311,8 +520,13 @@ export default function ChatSidebar({ onSessionSelect, onNewChat, currentSession
         </form>
       </div>
 
+      {/* Chat history section */}
+      <div className="p-4">
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">All Chats</h2>
+      </div>
+
       <ScrollArea className="flex-grow">
-        <div className="p-3">
+        <div className="px-4 pb-4">
          {renderContent()}
         </div>
       </ScrollArea>

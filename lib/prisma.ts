@@ -11,6 +11,11 @@ const prisma =
   new PrismaClient({
     // Optional: log Prisma queries
     // log: ['query', 'info', 'warn', 'error'],
+    // Disable transactions for MongoDB standalone
+    transactionOptions: {
+      maxWait: 2000,
+      timeout: 5000,
+    },
   })
 
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma

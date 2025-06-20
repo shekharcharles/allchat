@@ -6,49 +6,122 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String   
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  email        String   @unique
+  name         String?
+  image        String?  // Profile image URL
+  password     String
+  createdAt    DateTime @default(now())
+  messages     ChatMessage[] @relation("UserMessages")
+  sessions     ChatSession[] @relation("UserSessions")
+  files        FileMetadata[] @relation("UserFiles")
+  preferences  UserPreferences? @relation("UserPreferences")
+}
 
-  messages ChatMessage[]
-  sessions ChatSession[]
+model UserPreferences {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                String   @unique @db.ObjectId
+  user                  User     @relation("UserPreferences", fields: [userId], references: [id], onDelete: Cascade)
+  defaultModel          String?  @default("openai/gpt-4o-mini")
+  theme                 String?  @default("light")
+  language              String?  @default("en")
+
+  // Visual preferences
+  enableAnimations      Boolean? @default(true)
+  enableSounds          Boolean? @default(false)
+  compactMode           Boolean? @default(false)
+  fontSize              String?  @default("medium") // small, medium, large
+  chatBubbleStyle       String?  @default("modern") // modern, classic, minimal
+
+  // AI behavior preferences
+  enableStreaming       Boolean? @default(true)
+  maxTokens             Int?     @default(2048)
+  temperature           Float?   @default(0.7)
+  enableAutoSave        Boolean? @default(true)
+
+  // Notification preferences
+  desktopNotifications  Boolean? @default(false)
+  emailUpdates          Boolean? @default(true)
+
+  // Privacy preferences
+  shareAnalytics        Boolean? @default(true)
+  saveConversations     Boolean? @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model ChatSession {
-  id          String   @id @default(cuid())
-  title       String   @default("New Chat")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  messages    ChatMessage[]
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  title        String      @default("New Chat")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime?   @updatedAt
+  userId       String      @db.ObjectId
+  user         User        @relation("UserSessions", fields: [userId], references: [id])
+  messages     ChatMessage[] @relation("SessionMessages")
+  provider     String?
+  model        String?
+  messageCount Int         @default(0)
+  lastProvider String?
+  lastModel    String?
 
-  @@index([userId])
+  // Enhanced conversation features
+  description  String?     // Optional description for the conversation
+  tags         String[]    @default([]) // Tags for categorization
+  isTemplate   Boolean     @default(false) // Whether this is a conversation template
+  isShared     Boolean     @default(false) // Whether this conversation is shared
+  shareId      String?     // Public share ID for shared conversations
+  parentId     String?     @db.ObjectId // For conversation branching
+  parent       ChatSession? @relation("ConversationBranch", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  branches     ChatSession[] @relation("ConversationBranch")
+  branchPoint  String?     @db.ObjectId // Message ID where this branch started
+  isArchived   Boolean     @default(false) // Whether conversation is archived
+  isFavorite   Boolean     @default(false) // Whether conversation is favorited
+  isDeleted    Boolean     @default(false) // Whether conversation is soft deleted
+  category     String?     @default("general") // Category: general, work, creative, etc.
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
   content   String
   role      Role
-  createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  sessionId String
-  session   ChatSession @relation(fields: [sessionId], references: [id])
-
-  @@index([userId])
-  @@index([sessionId])
+  createdAt DateTime  @default(now())
+  userId    String    @db.ObjectId
+  user      User      @relation("UserMessages", fields: [userId], references: [id])
+  sessionId String    @db.ObjectId
+  session   ChatSession @relation("SessionMessages", fields: [sessionId], references: [id], onDelete: Cascade)
+  provider  String?
+  model     String?
 }
 
 enum Role {
-  USER
-  ASSISTANT
+  user
+  assistant
 }
+
+model FileMetadata {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  gridFSId     String    @db.ObjectId // Reference to the file in GridFS
+  originalName String
+  filename     String    @unique // Unique name used in GridFS
+  mimeType     String
+  size         Int
+  userId       String    @db.ObjectId
+  user         User      @relation("UserFiles", fields: [userId], references: [id])
+  uploadedAt   DateTime  @default(now())
+  isDeleted    Boolean   @default(false)
+}
+
+// Add new relation to User model
+// Before:
+// messages  ChatMessage[] @relation("UserMessages")
+// sessions  ChatSession[] @relation("UserSessions")
+// After:
+// messages  ChatMessage[] @relation("UserMessages")
+// sessions  ChatSession[] @relation("UserSessions")
+// files     FileMetadata[] @relation("UserFiles")

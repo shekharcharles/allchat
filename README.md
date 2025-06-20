@@ -1,8 +1,8 @@
-# T3 Chat Cloneathon
+# AllChat
 
-The first ever "Cloneathon"
+A comprehensive AI chat application with multiple LLM support, file attachments, image generation, chat sharing, web search, and advanced features.
 
-Build an open source clone of T3 Chat and win up to $5,000 in prizes.
+Visit us at [allchat.pro](https://allchat.pro)
 
 This repo is very much a vibe coded WIP. More coming soon.
 

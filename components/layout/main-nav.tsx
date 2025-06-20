@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 
 export default function MainNav() {
   const { data: session, status } = useSession();
-  const isLoading = status === "loading";
 
   return (
     <nav className="bg-card shadow-sm">
@@ -18,22 +17,16 @@ export default function MainNav() {
             </Link>
           </div>
           <div className="flex items-center space-x-4">
-            {isLoading ? (
+            {status === "loading" ? (
               <div className="text-sm text-muted-foreground">Loading...</div>
             ) : session ? (
               <>
-                <Link
-                  href="/chat"
-                  className="text-sm font-medium text-foreground hover:text-primary"
-                >
-                  Chat
-                </Link>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => signOut({ callbackUrl: "/" })}
                 >
-                  Logout ({session.user?.email || session.user?.name})
+                  {session.user?.email || session.user?.name || "User"}
                 </Button>
               </>
             ) : (
